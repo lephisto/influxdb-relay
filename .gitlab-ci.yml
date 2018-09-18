@@ -2,51 +2,41 @@
 # https://docs.gitlab.com/ee/ci/docker/using_docker_build.html
 
 stages:
-  - commit
-  - test
+  - linter
   - build
-  - docker
 
-# commit
-# git-history:
-#   stage: commit
-#   script:
-#     - >
-#       bash <(curl --fail --location --silent --show-error
-#       https://git.io/vxIxF)
-
-# lines-length:
-#   stage: commit
-#   script:
-#     - >
-#       bash <(curl --fail --location --silent --show-error
-#       https://git.io/vxIxN)
-
-# test
+# linter
 dockerlint:
-  stage: test
+  stage: linter
   image: vpgrp/linter:docker
-  allow_failure: true
   script:
     - find . -type f -name "Dockerfile" | xargs -I{} dockerlint {}
+  allow_failure: true
 
 golint:
-  stage: test
+  stage: linter
   image: vpgrp/linter:golang
-  allow_failure: true
   script:
     - go get github.com/GeertJohan/fgt
     - find . -type f -name "*\.go" | xargs -I{} fgt golint {}
+  allow_failure: true
 
 pylint:
-  stage: test
+  stage: linter
   image: vpgrp/linter:python
-  allow_failure: true
   script:
     - find . -type f -name "*\.py" | xargs -I{} pylint {}
+  allow_failure: true
 
 # build
-build:
+go-get:
+  stage: build
+  image: vpgrp/golang:latest
+  allow_failure: true
+  script:
+    - go get -u github.com/vente-privee/influxdb-relay
+
+go-build:
   stage: build
   image: vpgrp/golang:latest
   allow_failure: true
@@ -59,16 +49,8 @@ build:
     - cd /go/src/github.com/vente-privee/influxdb-relay
     - python /go/src/github.com/vente-privee/influxdb-relay/build.py
 
-goget:
-  stage: build
-  image: vpgrp/golang:latest
-  allow_failure: true
-  script:
-    - go get -u github.com/vente-privee/influxdb-relay
-
-# docker
 docker-build:
-  stage: docker
+  stage: build
   image: docker:latest
   allow_failure: true
   services:
@@ -78,15 +60,4 @@ docker-build:
   script:
     - docker build --file Dockerfile.build --rm --tag influxdb-relay-builder:latest .
     - docker run --rm --volume $(pwd):/go/src/github.com/vente-privee/influxdb-relay influxdb-relay-builder
-
-docker-goget:
-  stage: docker
-  image: docker:latest
-  allow_failure: true
-  services:
-    - docker:dind
-  variables:
-    DOCKER_DRIVER: overlay
-  script:
-    - docker build --file Dockerfile --rm --tag influxdb-relay:latest .
 # EOF
