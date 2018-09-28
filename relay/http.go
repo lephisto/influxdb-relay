@@ -18,24 +18,26 @@ import (
 	"time"
 
 	"github.com/influxdata/influxdb/models"
+
+	. "github.com/vente-privee/influxdb-relay-lucas/config"
 )
 
 // HTTP is a relay for HTTP influxdb writes
 type HTTP struct {
-	addr   string
-	name   string
-	schema string
+	addr   		string
+	name   		string
+	schema 		string
 
-	cert string
-	rp   string
+	cert		string
+	rp			string
 
-	closing int64
-	l       net.Listener
+	closing		int64
+	l			net.Listener
 
-	backends []*httpBackend
+	backends	[]*httpBackend
 }
 
-// -TODO-
+// Default HTTP settings and a few constants
 const (
 	DefaultHTTPTimeout      = 10 * time.Second
 	DefaultMaxDelayInterval = 10 * time.Second
@@ -45,7 +47,9 @@ const (
 	MB = 1024 * KB
 )
 
-// NewHTTP -TODO-
+// NewHTTP creates a new HTTP relay
+// This relay will most likely be tied to a RelayService
+// and manage a set of HTTPBackends
 func NewHTTP(cfg HTTPConfig) (Relay, error) {
 	h := new(HTTP)
 
@@ -55,11 +59,14 @@ func NewHTTP(cfg HTTPConfig) (Relay, error) {
 	h.cert = cfg.SSLCombinedPem
 	h.rp = cfg.DefaultRetentionPolicy
 
+	// If a cert is specified, this means the user
+	// wants to do HTTPS
 	h.schema = "http"
 	if h.cert != "" {
 		h.schema = "https"
 	}
 
+	// For each output specified in the config, we are going to create a backend
 	for i := range cfg.Outputs {
 		backend, err := newHTTPBackend(&cfg.Outputs[i])
 		if err != nil {
@@ -72,15 +79,18 @@ func NewHTTP(cfg HTTPConfig) (Relay, error) {
 	return h, nil
 }
 
-// Name -TODO-
+// Name is the name of the HTTP relay
+// a default name might be generated if it is
+// not specified in the configuration file
 func (h *HTTP) Name() string {
 	if h.name == "" {
 		return fmt.Sprintf("%s://%s", h.schema, h.addr)
 	}
+
 	return h.name
 }
 
-// Run -TODO-
+// Run actually launch the HTTP endpoint
 func (h *HTTP) Run() error {
 	l, err := net.Listen("tcp", h.addr)
 	if err != nil {
@@ -103,6 +113,7 @@ func (h *HTTP) Run() error {
 
 	log.Printf("Starting %s relay %q on %v", strings.ToUpper(h.schema), h.Name(), h.addr)
 
+	// TODO: Comment this block
 	err = http.Serve(l, h)
 	if atomic.LoadInt64(&h.closing) != 0 {
 		return nil
@@ -110,13 +121,17 @@ func (h *HTTP) Run() error {
 	return err
 }
 
-// Stop -TODO-
+// Stop actually stops the HTTP endpoint
 func (h *HTTP) Stop() error {
 	atomic.StoreInt64(&h.closing, 1)
 	return h.l.Close()
 }
 
-// ServeHTTP -TODO-
+// ServeHTTP is the function that handles the different route
+// The response is a JSON object describing the state of the operation
+// TODO: Formalize JSON return value into a structure
+// TODO: Split this into a router
+// TODO: Allow different treatments based on the target "type"
 func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
@@ -282,6 +297,7 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	errResponse.Write(w)
 }
 
+
 type responseData struct {
 	ContentType     string
 	ContentEncoding string
@@ -385,9 +401,11 @@ func (b *simplePoster) post(buf []byte, query string, auth string) (*responseDat
 type httpBackend struct {
 	poster
 	name string
+	inputType Input
 }
 
 func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
+	// Get default name
 	if cfg.Name == "" {
 		cfg.Name = cfg.Location
 	}
@@ -424,8 +442,9 @@ func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
 	}
 
 	return &httpBackend{
-		poster: p,
-		name:   cfg.Name,
+		poster:		p,
+		name:		cfg.Name,
+		inputType:	cfg.InputType,
 	}, nil
 }
 

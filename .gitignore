@@ -3,3 +3,4 @@ build
 build/*
 influxdb-relay
 pkg
+.idea/

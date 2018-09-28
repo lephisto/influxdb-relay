@@ -7,7 +7,8 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/vente-privee/influxdb-relay/relay"
+	. "github.com/vente-privee/influxdb-relay-lucas/config"
+	"github.com/vente-privee/influxdb-relay-lucas/relayservice"
 )
 
 var (
@@ -17,18 +18,20 @@ var (
 func main() {
 	flag.Parse()
 
+	// Configuration file is mandatory
 	if *configFile == "" {
 		fmt.Fprintln(os.Stderr, "Missing configuration file")
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
 
-	cfg, err := relay.LoadConfigFile(*configFile)
+	// And it has to be loaded in order to continue
+	cfg, err := LoadConfigFile(*configFile)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Problem loading config file:", err)
+		log.Fatal("Problem loading config file: ", err)
 	}
 
-	r, err := relay.New(cfg)
+	r, err := relayservice.New(cfg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -41,6 +44,6 @@ func main() {
 		r.Stop()
 	}()
 
-	log.Println("starting relays...")
+	log.Println("Starting relays...")
 	r.Run()
 }

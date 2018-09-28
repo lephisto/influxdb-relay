@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"github.com/influxdata/influxdb/models"
+
+	. "github.com/vente-privee/influxdb-relay-lucas/config"
 )
 
 const (
