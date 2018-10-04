@@ -7,34 +7,35 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/influxdata/influxdb/models"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/influxdata/influxdb/models"
-
 	. "git.vpgrp.io/lsantoni/influxdb-relay/config"
 )
 
 // HTTP is a relay for HTTP influxdb writes
 type HTTP struct {
-	addr   		string
-	name   		string
-	schema 		string
+	addr   string
+	name   string
+	schema string
 
-	cert		string
-	rp			string
+	cert string
+	rp   string
 
-	closing		int64
-	l			net.Listener
+	closing int64
+	l       net.Listener
 
-	backends	[]*httpBackend
+	backends []*httpBackend
 }
 
 // Default HTTP settings and a few constants
@@ -154,14 +155,14 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			log.Printf("error: %s", err)
 			jsonResponse(w, http.StatusInternalServerError, "json marshalling failed")
- 			return
+			return
 		}
 
 		jsonResponse(w, http.StatusOK, fmt.Sprintf("\"status\": %s", string(j)))
 		return
 	}
 
-	if r.URL.Path != "/write" {
+	if r.URL.Path != "/write" && r.URL.Path != "/api/v1/prom/write" {
 		jsonResponse(w, http.StatusNotFound, "invalid write endpoint")
 		return
 	}
@@ -199,8 +200,15 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body = b
 	}
 
-	// A partir de ici
+	if r.URL.Path == "/write" {
+		h.handleStandard(w, r, body, queryParams, start)
+	} else if r.URL.Path == "/api/v1/prom/write" {
+		content, _ := ioutil.ReadAll(body)
+		h.handleProm(w, r, content, queryParams.Encode())
+	}
+}
 
+func (h *HTTP) handleStandard(w http.ResponseWriter, r *http.Request, body io.ReadCloser, queryParams url.Values, start time.Time) {
 	bodyBuf := getBuf()
 	_, err := bodyBuf.ReadFrom(body)
 	if err != nil {
@@ -300,6 +308,63 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	errResponse.Write(w)
 }
 
+func (h *HTTP) handleProm(w http.ResponseWriter, r *http.Request, content []byte, query string) {
+	authHeader := r.Header.Get("Authorization")
+
+	var wg sync.WaitGroup
+	wg.Add(len(h.backends))
+
+	var responses = make(chan *responseData, len(h.backends))
+
+	for _, b := range h.backends {
+		b := b
+		go func() {
+			defer wg.Done()
+			resp, err := b.post(content, query, authHeader)
+			if err != nil {
+				log.Printf("Problem posting to relay %q backend %q: %v", h.Name(), b.name, err)
+			} else {
+				if resp.StatusCode/100 == 5 {
+					log.Printf("5xx response for relay %q backend %q: %v", h.Name(), b.name, resp.StatusCode)
+				}
+				responses <- resp
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(responses)
+	}()
+
+	var errResponse *responseData
+
+	for resp := range responses {
+		switch resp.StatusCode / 100 {
+		case 2:
+			w.WriteHeader(http.StatusNoContent)
+			return
+
+		case 4:
+			// user error
+			resp.Write(w)
+			return
+
+		default:
+			// hold on to one of the responses to return back to the client
+			errResponse = resp
+		}
+	}
+
+	// no successful writes
+	if errResponse == nil {
+		// failed to make any valid request...
+		jsonResponse(w, http.StatusServiceUnavailable, "unable to write points")
+		return
+	}
+
+	errResponse.Write(w)
+}
 
 type responseData struct {
 	ContentType     string
@@ -403,7 +468,7 @@ func (b *simplePoster) post(buf []byte, query string, auth string) (*responseDat
 
 type httpBackend struct {
 	poster
-	name string
+	name      string
 	inputType Input
 }
 
@@ -445,9 +510,9 @@ func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
 	}
 
 	return &httpBackend{
-		poster:		p,
-		name:		cfg.Name,
-		inputType:	cfg.InputType,
+		poster:    p,
+		name:      cfg.Name,
+		inputType: cfg.InputType,
 	}, nil
 }
 
