@@ -19,7 +19,7 @@ import (
 
 	"github.com/influxdata/influxdb/models"
 
-	. "github.com/vente-privee/influxdb-relay-lucas/config"
+	. "git.vpgrp.io/lsantoni/influxdb-relay/config"
 )
 
 // HTTP is a relay for HTTP influxdb writes
@@ -135,6 +135,7 @@ func (h *HTTP) Stop() error {
 func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
+	fmt.Println("Got request on: " + r.URL.Path)
 	if r.URL.Path == "/ping" && (r.Method == "GET" || r.Method == "HEAD") {
 		w.Header().Add("X-InfluxDB-Version", "relay")
 		w.WriteHeader(http.StatusNoContent)
@@ -197,6 +198,8 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		defer b.Close()
 		body = b
 	}
+
+	// A partir de ici
 
 	bodyBuf := getBuf()
 	_, err := bodyBuf.ReadFrom(body)

@@ -61,7 +61,7 @@ type HTTPOutputConfig struct {
 	// Where does the data come from ?
 	// This allows us to identify the data in the source code
 	// in order to apply a type-based treatment to it
-	InputType Input `toml:"from"`
+	InputType Input `toml:"type"`
 }
 
 // UDPConfig represents a UDP relay
@@ -102,5 +102,18 @@ func LoadConfigFile(filename string) (cfg Config, err error) {
 	}
 	defer f.Close()
 
-	return cfg, toml.NewDecoder(f).Decode(&cfg)
+	err = toml.NewDecoder(f).Decode(&cfg)
+	if err != nil {
+		return cfg, err
+	}
+
+	for index, relay := range cfg.HTTPRelays {
+	  for indexB, backend := range relay.Outputs {
+	    if backend.InputType == "" {
+	      cfg.HTTPRelays[index].Outputs[indexB].InputType = Influxdb
+			}
+		}
+	}
+
+	return cfg, nil
 }
