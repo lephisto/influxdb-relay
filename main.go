@@ -26,7 +26,7 @@ func main() {
 		fmt.Println("Influxdb-relay version " + relayVersion)
 		os.Exit(0)
 	}
-	
+
 	// Configuration file is mandatory
 	if *configFile == "" {
 		fmt.Fprintln(os.Stderr, "Missing configuration file")

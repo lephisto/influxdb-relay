@@ -27,6 +27,9 @@ type HTTP struct {
 	cert string
 	rp   string
 
+	pingResponseCode int
+	pingResponseHeaders map[string]string
+
 	closing int64
 	l       net.Listener
 
@@ -41,6 +44,7 @@ type relayMiddleware func(h *HTTP, handlerFunc relayHandlerFunc) relayHandlerFun
 
 // Default HTTP settings and a few constants
 const (
+	DefaultHTTPPingResponse = http.StatusNoContent
 	DefaultHTTPTimeout      = 10 * time.Second
 	DefaultMaxDelayInterval = 10 * time.Second
 	DefaultBatchSizeKB      = 512
@@ -72,6 +76,17 @@ func NewHTTP(cfg HTTPConfig, verbose bool) (Relay, error) {
 	h.addr = cfg.Addr
 	h.name = cfg.Name
 	h.log = verbose
+
+	h.pingResponseCode = DefaultHTTPPingResponse
+	if cfg.DefaultPingResponse != 0 {
+		h.pingResponseCode = cfg.DefaultPingResponse
+	}
+
+	h.pingResponseHeaders = make(map[string]string)
+	h.pingResponseHeaders["X-InfluxDB-Version"] = "relay"
+	if h.pingResponseCode != http.StatusNoContent {
+		h.pingResponseHeaders["Content-Lenght"] = "0"
+	}
 
 	h.cert = cfg.SSLCombinedPem
 	h.rp = cfg.DefaultRetentionPolicy

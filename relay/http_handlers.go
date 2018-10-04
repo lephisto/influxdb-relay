@@ -35,7 +35,9 @@ func (h *HTTP) handleStatus(w http.ResponseWriter, r *http.Request) {
 
 func (h *HTTP) handlePing(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		w.Header().Add("X-InfluxDB-Version", "relay")
+		for key, value := range h.pingResponseHeaders {
+			w.Header().Add(key, value)
+		}
 		w.WriteHeader(http.StatusNoContent)
 	} else {
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
