@@ -22,14 +22,14 @@ func (h *HTTP) handleStatus(w http.ResponseWriter, r *http.Request) {
 		j, err := json.Marshal(st)
 
 		if err != nil {
-			log.Printf("error: %s", err)
-			jsonResponse(w, http.StatusInternalServerError, "json marshalling failed")
+			jsonResponse(w, response{http.StatusInternalServerError, "json marshalling failed: " + err.Error() })
 			return
 		}
 
-		jsonResponse(w, http.StatusOK, fmt.Sprintf("\"status\": %s", string(j)))
+		jsonResponse(w, response{http.StatusOK, fmt.Sprintf("\"status\": %s", string(j))})
 	} else {
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		jsonResponse(w, response{http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed)})
+		return
 	}
 }
 
@@ -40,7 +40,8 @@ func (h *HTTP) handlePing(w http.ResponseWriter, r *http.Request) {
 		}
 		w.WriteHeader(http.StatusNoContent)
 	} else {
-		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		jsonResponse(w, response{http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed)})
+		return
 	}
 }
 
@@ -50,7 +51,8 @@ func (h *HTTP) handleStandard(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 		} else {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			jsonResponse(w, response{http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed)})
+			return
 		}
 	}
 
@@ -59,7 +61,7 @@ func (h *HTTP) handleStandard(w http.ResponseWriter, r *http.Request) {
 	_, err := bodyBuf.ReadFrom(r.Body)
 	if err != nil {
 		putBuf(bodyBuf)
-		jsonResponse(w, http.StatusInternalServerError, "problem reading request body")
+		jsonResponse(w, response{http.StatusInternalServerError, "problem reading request body"})
 		return
 	}
 
@@ -67,7 +69,7 @@ func (h *HTTP) handleStandard(w http.ResponseWriter, r *http.Request) {
 	points, err := models.ParsePointsWithPrecision(bodyBuf.Bytes(), h.start, precision)
 	if err != nil {
 		putBuf(bodyBuf)
-		jsonResponse(w, http.StatusBadRequest, "unable to parse points")
+		jsonResponse(w, response{http.StatusBadRequest, "unable to parse points"})
 		return
 	}
 
@@ -86,7 +88,7 @@ func (h *HTTP) handleStandard(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		putBuf(outBuf)
-		jsonResponse(w, http.StatusInternalServerError, "problem writing points")
+		jsonResponse(w, response{http.StatusInternalServerError, "problem writing points"})
 		return
 	}
 
@@ -150,7 +152,7 @@ func (h *HTTP) handleStandard(w http.ResponseWriter, r *http.Request) {
 	// no successful writes
 	if errResponse == nil {
 		// failed to make any valid request...
-		jsonResponse(w, http.StatusServiceUnavailable, "unable to write points")
+		jsonResponse(w, response{http.StatusServiceUnavailable, "unable to write points"})
 		return
 	}
 
@@ -163,7 +165,8 @@ func (h *HTTP) handleProm(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusNoContent)
 		} else {
-			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+			jsonResponse(w, response{http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed)})
+			return
 		}
 	}
 
@@ -221,7 +224,7 @@ func (h *HTTP) handleProm(w http.ResponseWriter, r *http.Request) {
 	// no successful writes
 	if errResponse == nil {
 		// failed to make any valid request...
-		jsonResponse(w, http.StatusServiceUnavailable, "unable to write points")
+		jsonResponse(w, response{http.StatusServiceUnavailable, "unable to write points"})
 		return
 	}
 

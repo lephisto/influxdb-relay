@@ -11,6 +11,7 @@ func allMiddlewares(h *HTTP, handlerFunc relayHandlerFunc) relayHandlerFunc {
 	for _, middleware := range middlewares {
 		res = middleware(h, res)
 	}
+
 	return res
 }
 
@@ -30,7 +31,7 @@ func (h *HTTP) bodyMiddleWare(next relayHandlerFunc) relayHandlerFunc {
 		if r.Header.Get("Content-Encoding") == "gzip" {
 			b, err := gzip.NewReader(r.Body)
 			if err != nil {
-				jsonResponse(w, http.StatusBadRequest, "unable to decode gzip body")
+				jsonResponse(w, response{http.StatusBadRequest, "unable to decode gzip body"})
 			}
 			defer b.Close()
 			body = b
@@ -46,13 +47,14 @@ func (h *HTTP) queryMiddleWare(next relayHandlerFunc) relayHandlerFunc {
 		queryParams := r.URL.Query()
 
 		if queryParams.Get("db") == "" {
-			jsonResponse(w, http.StatusBadRequest, "missing parameter: db")
+			jsonResponse(w, response{http.StatusBadRequest, "missing parameter: db"})
 			return
 		}
 
 		if queryParams.Get("rp") == "" && h.rp != "" {
 			queryParams.Set("rp", h.rp)
 		}
+
 		r.URL.RawQuery = queryParams.Encode()
 		next(h, w, r)
 	})
