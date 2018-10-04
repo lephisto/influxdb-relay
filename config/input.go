@@ -1,9 +1,8 @@
 package config
 
-
 type Input string
 
 const (
-	Influxdb	Input = "influxdb"
-	Prometheus	Input = "prometheus"
+	TypeInfluxdb   Input = "influxdb"
+	TypePrometheus Input = "prometheus"
 )

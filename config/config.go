@@ -108,9 +108,9 @@ func LoadConfigFile(filename string) (cfg Config, err error) {
 	}
 
 	for index, relay := range cfg.HTTPRelays {
-	  for indexB, backend := range relay.Outputs {
-	    if backend.InputType == "" {
-	      cfg.HTTPRelays[index].Outputs[indexB].InputType = Influxdb
+		for indexB, backend := range relay.Outputs {
+			if backend.InputType == "" {
+				cfg.HTTPRelays[index].Outputs[indexB].InputType = TypeInfluxdb
 			}
 		}
 	}
