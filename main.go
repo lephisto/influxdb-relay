@@ -11,14 +11,22 @@ import (
 	"git.vpgrp.io/lsantoni/influxdb-relay/relayservice"
 )
 
+const relayVersion = "2.0.0"
+
 var (
-	configFile = flag.String("config", "", "Configuration file to use")
-	verbose    = flag.Bool("v", false, "If set, will trigger logging of all events")
+	configFile 	= flag.String("config", "", "Configuration file to use")
+	verbose    	= flag.Bool("v", false, "If set, will trigger logging of all events")
+	versionFlag = flag.Bool("version", false, "Print current Influxdb-relay version")
 )
 
 func main() {
 	flag.Parse()
 
+	if *versionFlag {
+		fmt.Println("Influxdb-relay version " + relayVersion)
+		os.Exit(0)
+	}
+	
 	// Configuration file is mandatory
 	if *configFile == "" {
 		fmt.Fprintln(os.Stderr, "Missing configuration file")
