@@ -8,12 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/influxdata/influxdb/models"
-	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -36,7 +34,12 @@ type HTTP struct {
 	l       net.Listener
 
 	backends []*httpBackend
+
+	start time.Time
 }
+
+type relayHandlerFunc func(h *HTTP, w http.ResponseWriter, r *http.Request)
+type relayMiddleware func(h *HTTP, handlerFunc relayHandlerFunc) relayHandlerFunc
 
 // Default HTTP settings and a few constants
 const (
@@ -47,6 +50,18 @@ const (
 	KB = 1024
 	MB = 1024 * KB
 )
+
+var handlers = map[string]relayHandlerFunc{
+	"/write":             (*HTTP).handleStandard,
+	"/api/v1/prom/write": (*HTTP).handleProm,
+	"/ping":              (*HTTP).handlePing,
+	"/status":            (*HTTP).handleStatus,
+}
+
+var middlewares = []relayMiddleware{
+	(*HTTP).bodyMiddleWare,
+	(*HTTP).queryMiddleWare,
+}
 
 // NewHTTP creates a new HTTP relay
 // This relay will most likely be tied to a RelayService
@@ -134,16 +149,63 @@ func (h *HTTP) Stop() error {
 // TODO: Split this into a router
 // TODO: Allow different treatments based on the target "type"
 func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	start := time.Now()
+	h.start = time.Now()
 
 	fmt.Println("Got request on: " + r.URL.Path)
-	if r.URL.Path == "/ping" && (r.Method == "GET" || r.Method == "HEAD") {
-		w.Header().Add("X-InfluxDB-Version", "relay")
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
 
-	if r.URL.Path == "/status" && (r.Method == "GET" || r.Method == "HEAD") {
+	if fun, ok := handlers[r.URL.Path]; ok {
+		allMiddlewares(h, fun)(h, w, r)
+	} else {
+		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+	}
+}
+
+func allMiddlewares(h *HTTP, handlerFunc relayHandlerFunc) relayHandlerFunc {
+	var res = handlerFunc
+	for _, middleware := range middlewares {
+		res = middleware(h, res)
+	}
+	return res
+}
+
+func (h *HTTP) bodyMiddleWare(next relayHandlerFunc) relayHandlerFunc {
+	return relayHandlerFunc(func(h *HTTP, w http.ResponseWriter, r *http.Request) {
+		var body = r.Body
+
+		if r.Header.Get("Content-Encoding") == "gzip" {
+			b, err := gzip.NewReader(r.Body)
+			if err != nil {
+				jsonResponse(w, http.StatusBadRequest, "unable to decode gzip body")
+			}
+			defer b.Close()
+			body = b
+		}
+
+		r.Body = body
+		next(h, w, r)
+	})
+}
+
+func (h *HTTP) queryMiddleWare(next relayHandlerFunc) relayHandlerFunc {
+	return relayHandlerFunc(func(h *HTTP, w http.ResponseWriter, r *http.Request) {
+		queryParams := r.URL.Query()
+
+		if queryParams.Get("db") == "" {
+			jsonResponse(w, http.StatusBadRequest, "missing parameter: db")
+			return
+		}
+
+		if queryParams.Get("rp") == "" && h.rp != "" {
+			queryParams.Set("rp", h.rp)
+		}
+		r.URL.RawQuery = queryParams.Encode()
+		next(h, w, r)
+	})
+
+}
+
+func (h *HTTP) handleStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
 		st := make(map[string]map[string]string)
 
 		for _, b := range h.backends {
@@ -159,58 +221,33 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		jsonResponse(w, http.StatusOK, fmt.Sprintf("\"status\": %s", string(j)))
-		return
-	}
-
-	if r.URL.Path != "/write" && r.URL.Path != "/api/v1/prom/write" {
-		jsonResponse(w, http.StatusNotFound, "invalid write endpoint")
-		return
-	}
-
-	if r.Method != "POST" {
-		w.Header().Set("Allow", "POST")
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusNoContent)
-		} else {
-			jsonResponse(w, http.StatusMethodNotAllowed, "invalid write method")
-		}
-		return
-	}
-
-	queryParams := r.URL.Query()
-
-	// fail early if we're missing the database
-	if queryParams.Get("db") == "" {
-		jsonResponse(w, http.StatusBadRequest, "missing parameter: db")
-		return
-	}
-
-	if queryParams.Get("rp") == "" && h.rp != "" {
-		queryParams.Set("rp", h.rp)
-	}
-
-	var body = r.Body
-
-	if r.Header.Get("Content-Encoding") == "gzip" {
-		b, err := gzip.NewReader(r.Body)
-		if err != nil {
-			jsonResponse(w, http.StatusBadRequest, "unable to decode gzip body")
-		}
-		defer b.Close()
-		body = b
-	}
-
-	if r.URL.Path == "/write" {
-		h.handleStandard(w, r, body, queryParams, start)
-	} else if r.URL.Path == "/api/v1/prom/write" {
-		content, _ := ioutil.ReadAll(body)
-		h.handleProm(w, r, content, queryParams.Encode())
+	} else {
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 	}
 }
 
-func (h *HTTP) handleStandard(w http.ResponseWriter, r *http.Request, body io.ReadCloser, queryParams url.Values, start time.Time) {
+func (h *HTTP) handlePing(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		w.Header().Add("X-InfluxDB-Version", "relay")
+		w.WriteHeader(http.StatusNoContent)
+	} else {
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+	}
+}
+
+func (h *HTTP) handleStandard(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		}
+	}
+
+	queryParams := r.URL.Query()
 	bodyBuf := getBuf()
-	_, err := bodyBuf.ReadFrom(body)
+	_, err := bodyBuf.ReadFrom(r.Body)
 	if err != nil {
 		putBuf(bodyBuf)
 		jsonResponse(w, http.StatusInternalServerError, "problem reading request body")
@@ -218,7 +255,7 @@ func (h *HTTP) handleStandard(w http.ResponseWriter, r *http.Request, body io.Re
 	}
 
 	precision := queryParams.Get("precision")
-	points, err := models.ParsePointsWithPrecision(bodyBuf.Bytes(), start, precision)
+	points, err := models.ParsePointsWithPrecision(bodyBuf.Bytes(), h.start, precision)
 	if err != nil {
 		putBuf(bodyBuf)
 		jsonResponse(w, http.StatusBadRequest, "unable to parse points")
@@ -311,7 +348,16 @@ func (h *HTTP) handleStandard(w http.ResponseWriter, r *http.Request, body io.Re
 	errResponse.Write(w)
 }
 
-func (h *HTTP) handleProm(w http.ResponseWriter, r *http.Request, content []byte, query string) {
+func (h *HTTP) handleProm(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+		} else {
+			http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
+		}
+	}
+
 	authHeader := r.Header.Get("Authorization")
 
 	var wg sync.WaitGroup
@@ -326,7 +372,8 @@ func (h *HTTP) handleProm(w http.ResponseWriter, r *http.Request, content []byte
 		}
 		go func() {
 			defer wg.Done()
-			resp, err := b.post(content, query, authHeader)
+			content, _ := ioutil.ReadAll(r.Body)
+			resp, err := b.post(content, r.URL.RawQuery, authHeader)
 			if err != nil {
 				log.Printf("Problem posting to relay %q backend %q: %v", h.Name(), b.name, err)
 			} else {
