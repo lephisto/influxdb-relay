@@ -36,6 +36,7 @@ type HTTP struct {
 	backends []*httpBackend
 
 	start time.Time
+	log   bool
 }
 
 type relayHandlerFunc func(h *HTTP, w http.ResponseWriter, r *http.Request)
@@ -51,26 +52,29 @@ const (
 	MB = 1024 * KB
 )
 
-var handlers = map[string]relayHandlerFunc{
-	"/write":             (*HTTP).handleStandard,
-	"/api/v1/prom/write": (*HTTP).handleProm,
-	"/ping":              (*HTTP).handlePing,
-	"/status":            (*HTTP).handleStatus,
-}
-
-var middlewares = []relayMiddleware{
-	(*HTTP).bodyMiddleWare,
-	(*HTTP).queryMiddleWare,
-}
+var (
+	handlers = map[string]relayHandlerFunc{
+		"/write":             (*HTTP).handleStandard,
+		"/api/v1/prom/write": (*HTTP).handleProm,
+		"/ping":              (*HTTP).handlePing,
+		"/status":            (*HTTP).handleStatus,
+	}
+	middlewares = []relayMiddleware{
+		(*HTTP).bodyMiddleWare,
+		(*HTTP).queryMiddleWare,
+		(*HTTP).logMiddleWare,
+	}
+)
 
 // NewHTTP creates a new HTTP relay
 // This relay will most likely be tied to a RelayService
 // and manage a set of HTTPBackends
-func NewHTTP(cfg HTTPConfig) (Relay, error) {
+func NewHTTP(cfg HTTPConfig, verbose bool) (Relay, error) {
 	h := new(HTTP)
 
 	h.addr = cfg.Addr
 	h.name = cfg.Name
+	h.log = verbose
 
 	h.cert = cfg.SSLCombinedPem
 	h.rp = cfg.DefaultRetentionPolicy
@@ -151,8 +155,6 @@ func (h *HTTP) Stop() error {
 func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.start = time.Now()
 
-	fmt.Println("Got request on: " + r.URL.Path)
-
 	if fun, ok := handlers[r.URL.Path]; ok {
 		allMiddlewares(h, fun)(h, w, r)
 	} else {
@@ -166,6 +168,15 @@ func allMiddlewares(h *HTTP, handlerFunc relayHandlerFunc) relayHandlerFunc {
 		res = middleware(h, res)
 	}
 	return res
+}
+
+func (h *HTTP) logMiddleWare(next relayHandlerFunc) relayHandlerFunc {
+	return relayHandlerFunc(func(h *HTTP, w http.ResponseWriter, r *http.Request) {
+		if h.log {
+			log.Println("Got request on: " + r.URL.Path)
+		}
+		next(h, w, r)
+	})
 }
 
 func (h *HTTP) bodyMiddleWare(next relayHandlerFunc) relayHandlerFunc {

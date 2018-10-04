@@ -13,6 +13,7 @@ import (
 
 var (
 	configFile = flag.String("config", "", "Configuration file to use")
+	verbose    = flag.Bool("v", false, "If set, will trigger logging of all events")
 )
 
 func main() {
@@ -30,6 +31,8 @@ func main() {
 	if err != nil {
 		log.Fatal("Problem loading config file: ", err)
 	}
+
+	cfg.Verbose = *verbose
 
 	r, err := relayservice.New(cfg)
 	if err != nil {

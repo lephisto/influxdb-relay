@@ -12,6 +12,7 @@ import (
 type Config struct {
 	HTTPRelays []HTTPConfig `toml:"http"`
 	UDPRelays  []UDPConfig  `toml:"udp"`
+	Verbose    bool
 }
 
 // HTTPConfig represents an HTTP relay
