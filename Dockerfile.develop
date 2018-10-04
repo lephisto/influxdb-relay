@@ -1,0 +1,8 @@
+FROM golang
+
+WORKDIR /go/src/lsantoni/influxdb-relay
+
+COPY . .
+
+RUN go build
+CMD ["influxdb-relay"]
