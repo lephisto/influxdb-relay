@@ -1,8 +1,9 @@
 FROM golang
 
-WORKDIR /go/src/lsantoni/influxdb-relay
+WORKDIR /app
 
-COPY . .
+COPY influxdb-relay .
+COPY test.toml .
 
-RUN go build
-CMD ["influxdb-relay"]
+EXPOSE 9096
+CMD ["./influxdb-relay", "-config", "test.toml"]

@@ -1,0 +1,10 @@
+remote_write:
+  - url: "http://relay:9096/api/v1/prom/write?db=prometheus"
+
+scrape_configs:
+  - job_name: 'AUTOPARSE'
+    scrape_interval: 2s
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          group: 'production'
