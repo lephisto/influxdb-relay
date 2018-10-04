@@ -1,0 +1,7 @@
+[[http]]
+name = "test-config"
+bind-addr = "0.0.0.0:9096"
+output = [
+    { name="from_influx", location = "http://influxdb:8086/write" },
+    { name="from_prometheus", location = "http://influxdb:8086/api/v1/prom/write", type="prometheus" }
+]
