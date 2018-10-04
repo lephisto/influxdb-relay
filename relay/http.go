@@ -3,6 +3,7 @@ package relay
 import (
 	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -56,6 +57,7 @@ var (
 		"/ping":              (*HTTP).handlePing,
 		"/status":            (*HTTP).handleStatus,
 	}
+
 	middlewares = []relayMiddleware{
 		(*HTTP).bodyMiddleWare,
 		(*HTTP).queryMiddleWare,
@@ -153,7 +155,8 @@ func (h *HTTP) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if fun, ok := handlers[r.URL.Path]; ok {
 		allMiddlewares(h, fun)(h, w, r)
 	} else {
-		http.Error(w, http.StatusText(http.StatusNotFound), http.StatusNotFound)
+		jsonResponse(w, response{http.StatusNotFound, http.StatusText(http.StatusNotFound)})
+		return
 	}
 }
 
@@ -178,16 +181,17 @@ func (rd *responseData) Write(w http.ResponseWriter) {
 	w.Write(rd.Body)
 }
 
-func jsonResponse(w http.ResponseWriter, code int, message string) {
-	var data string
-	if code/100 != 2 {
-		data = fmt.Sprintf("{\"error\":%q}\n", message)
-	} else {
-		data = fmt.Sprintf("{%s}\n", message)
+func jsonResponse(w http.ResponseWriter, r response) {
+	data, err := json.Marshal(r.body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Length", fmt.Sprint(len(data)))
-	w.WriteHeader(code)
+	w.WriteHeader(r.code)
+
 	w.Write([]byte(data))
 }
 
