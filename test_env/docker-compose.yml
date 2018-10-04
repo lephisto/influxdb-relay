@@ -21,8 +21,3 @@ services:
       dockerfile: Dockerfile.develop
     ports:
       - "9096:9096"
-
-  debug:
-    image: debian
-    stdin_open: true
-    tty: true
