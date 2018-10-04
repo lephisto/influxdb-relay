@@ -3,8 +3,8 @@ package relay
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/influxdata/influxdb/models"
 	"git.vpgrp.io/lsantoni/influxdb-relay/config"
+	"github.com/influxdata/influxdb/models"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -103,7 +103,7 @@ func (h *HTTP) handleStandard(w http.ResponseWriter, r *http.Request) {
 
 	for _, b := range h.backends {
 		b := b
-		if b.inputType != TypeInfluxdb {
+		if b.inputType != config.TypeInfluxdb {
 			continue
 		}
 		go func() {
