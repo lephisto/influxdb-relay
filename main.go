@@ -62,7 +62,7 @@ func main() {
 
 	// And it has to be loaded in order to continue
 	cfg, err := LoadConfigFile(*configFile)
-	if err == nil {
+	if err != nil {
 		log.Fatal(err.Error())
 	}
 
