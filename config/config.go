@@ -98,25 +98,24 @@ type UDPOutputConfig struct {
 }
 
 // LoadConfigFile parses the specified file into a Config object
-func LoadConfigFile(filename string) (cfg Config, err error) {
+func LoadConfigFile(filename string) (Config, error) {
+	var cfg Config
+
 	f, err := os.Open(filename)
 	if err != nil {
 		return cfg, err
 	}
 	defer f.Close()
 
-	err = toml.NewDecoder(f).Decode(&cfg)
-	if err != nil {
-		return cfg, err
-	}
-
-	for index, relay := range cfg.HTTPRelays {
-		for indexB, backend := range relay.Outputs {
-			if backend.InputType == "" {
-				cfg.HTTPRelays[index].Outputs[indexB].InputType = TypeInfluxdb
+	if err = toml.NewDecoder(f).Decode(&cfg); err == nil {
+		for index, relay := range cfg.HTTPRelays {
+			for indexB, backend := range relay.Outputs {
+				if backend.InputType == "" {
+					cfg.HTTPRelays[index].Outputs[indexB].InputType = TypeInfluxdb
+				}
 			}
 		}
 	}
 
-	return cfg, nil
+	return cfg, err
 }

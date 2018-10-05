@@ -326,7 +326,7 @@ func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
 	}, nil
 }
 
-// ErrBufferFull -TODO-
+// ErrBufferFull
 var ErrBufferFull = errors.New("retry buffer full")
 
 var bufPool = sync.Pool{New: func() interface{} { return new(bytes.Buffer) }}
