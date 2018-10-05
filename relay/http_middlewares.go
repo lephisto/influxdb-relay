@@ -46,7 +46,7 @@ func (h *HTTP) queryMiddleWare(next relayHandlerFunc) relayHandlerFunc {
 	return relayHandlerFunc(func(h *HTTP, w http.ResponseWriter, r *http.Request) {
 		queryParams := r.URL.Query()
 
-		if queryParams.Get("db") == "" {
+		if queryParams.Get("db") == "" && r.URL.Path == "/write" || r.URL.Path == "/api/v1/prom/write" {
 			jsonResponse(w, response{http.StatusBadRequest, "missing parameter: db"})
 			return
 		}

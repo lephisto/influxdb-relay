@@ -19,12 +19,7 @@ func (h *HTTP) handleStatus(w http.ResponseWriter, r *http.Request) {
 			st[b.name] = b.poster.getStats()
 		}
 
-		j, err := json.Marshal(st)
-
-		if err != nil {
-			jsonResponse(w, response{http.StatusInternalServerError, "json marshalling failed: " + err.Error() })
-			return
-		}
+		j, _ := json.Marshal(st)
 
 		jsonResponse(w, response{http.StatusOK, fmt.Sprintf("\"status\": %s", string(j))})
 	} else {
