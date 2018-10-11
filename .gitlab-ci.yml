@@ -19,7 +19,7 @@ golint:
   before_script:
     - go get github.com/GeertJohan/fgt
   script:
-    - find . -type f -name "*\.go" | xargs -I{} fgt golint {}
+    - find . -type f -name "*\.go" | grep -v 'vendor' | xargs -I{} fgt golint {}
   allow_failure: true
 
 pylint:
