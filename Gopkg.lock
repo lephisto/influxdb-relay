@@ -2,38 +2,41 @@
 
 
 [[projects]]
+  digest = "1:6bf12e1967bbd963fc29ca4ed39192c255cbea866521569d4bf542ca71a3c03a"
   name = "github.com/influxdata/influxdb"
   packages = [
     "models",
-    "pkg/escape"
+    "pkg/escape",
   ]
+  pruneopts = "UT"
   revision = "4e4e00bc5ab85a3ff5e988c91020cf0399a87026"
   version = "v1.5.4"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/influxdata/influxdb-relay"
-  packages = ["relay"]
-  revision = "adaa2ea7bf97af592884fcfa57df1a2a77adb571"
-
-[[projects]]
+  digest = "1:b56c589214f01a5601e0821387db484617392d0042f26234bf2da853a2f498a1"
   name = "github.com/naoina/go-stringutil"
   packages = ["."]
+  pruneopts = "UT"
   revision = "6b638e95a32d0c1131db0e7fe83775cbea4a0d0b"
   version = "v0.1.0"
 
 [[projects]]
+  digest = "1:f58c3d0e46b64878d00652fedba24ee879725191ab919dca7b62586859281c04"
   name = "github.com/naoina/toml"
   packages = [
     ".",
-    "ast"
+    "ast",
   ]
+  pruneopts = "UT"
   revision = "e6f5723bf2a66af014955e0888881314cf294129"
   version = "v0.1.1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "d4833f38d408a26ac32698fec49f8d184bd4e454e8460f058b3e281e06381c8a"
+  input-imports = [
+    "github.com/influxdata/influxdb/models",
+    "github.com/naoina/toml",
+  ]
   solver-name = "gps-cdcl"
   solver-version = 1
