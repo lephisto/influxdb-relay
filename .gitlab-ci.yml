@@ -22,43 +22,20 @@ golint:
     - find . -type f -name "*\.go" | grep -v 'vendor' | xargs -I{} fgt golint {}
   allow_failure: true
 
-pylint:
-  stage: linter
-  image: vpgrp/linter:python
-  script:
-    - find . -type f -name "*\.py" | grep -v 'vendor' | xargs -I{} pylint {}
-  allow_failure: true
-
 # build
 go-get:
   stage: build
   image: vpgrp/golang:latest
-  allow_failure: true
   script:
     - go get -u github.com/vente-privee/influxdb-relay
 
 go-build:
   stage: build
   image: vpgrp/golang:latest
-  allow_failure: true
   before_script:
-    - apt-get update  -qq -y
-    - apt-get install -qq -y git libffi-dev make python python-boto
     - mkdir -p ${GOPATH}/src/github.com/vente-privee
     - ln -fsv ${CI_PROJECT_DIR} ${GOPATH}/src/github.com/vente-privee/influxdb-relay
   script:
     - cd ${GOPATH}/src/github.com/vente-privee/influxdb-relay
-    - python ${GOPATH}/src/github.com/vente-privee/influxdb-relay/build.py
-
-docker-build:
-  stage: build
-  image: docker:latest
-  allow_failure: true
-  services:
-    - docker:dind
-  variables:
-    DOCKER_DRIVER: overlay
-  script:
-    - docker build --file Dockerfile.build --rm --tag influxdb-relay-builder:latest .
-    - docker run --rm --volume $(pwd):/go/src/github.com/vente-privee/influxdb-relay influxdb-relay-builder
+    - go build -a -ldflags '-extldflags "-static"' -o influxdb-relay
 # EOF
