@@ -11,7 +11,7 @@ import (
 
 	"github.com/influxdata/influxdb/models"
 
-	. "git.vpgrp.io/lsantoni/influxdb-relay/config"
+	. "git.vpgrp.io/noc/influxdb/influxdb-relay/config"
 )
 
 const (

@@ -3,7 +3,7 @@ package relay
 import (
 	"encoding/json"
 	"fmt"
-	"git.vpgrp.io/lsantoni/influxdb-relay/config"
+	"git.vpgrp.io/noc/influxdb/influxdb-relay/config"
 	"github.com/influxdata/influxdb/models"
 	"io/ioutil"
 	"log"
