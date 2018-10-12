@@ -39,3 +39,4 @@ go-build:
     - cd ${GOPATH}/src/github.com/vente-privee/influxdb-relay
     - go build -a -ldflags '-extldflags "-static"' -o influxdb-relay
 # EOF
+
