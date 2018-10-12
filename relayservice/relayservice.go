@@ -5,22 +5,22 @@ import (
 	"log"
 	"sync"
 
-	. "github.com/vente-privee/influxdb-relay/config"
-	. "github.com/vente-privee/influxdb-relay/relay"
+	"github.com/vente-privee/influxdb-relay/config"
+	"github.com/vente-privee/influxdb-relay/relay"
 )
 
 // Service is a map of relays
 type Service struct {
-	relays map[string]Relay
+	relays map[string]relay.Relay
 }
 
 // New loads the different relays from the configuration file
-func New(config Config) (*Service, error) {
+func New(config config.Config) (*Service, error) {
 	s := new(Service)
-	s.relays = make(map[string]Relay)
+	s.relays = make(map[string]relay.Relay)
 
 	for _, cfg := range config.HTTPRelays {
-		h, err := NewHTTP(cfg, config.Verbose)
+		h, err := relay.NewHTTP(cfg, config.Verbose)
 		if err != nil {
 			return nil, err
 		}
@@ -31,7 +31,7 @@ func New(config Config) (*Service, error) {
 	}
 
 	for _, cfg := range config.UDPRelays {
-		u, err := NewUDP(cfg)
+		u, err := relay.NewUDP(cfg)
 		if err != nil {
 			return nil, err
 		}

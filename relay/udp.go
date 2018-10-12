@@ -11,7 +11,7 @@ import (
 
 	"github.com/influxdata/influxdb/models"
 
-	. "github.com/vente-privee/influxdb-relay/config"
+	"github.com/vente-privee/influxdb-relay/config"
 )
 
 const (
@@ -32,7 +32,7 @@ type UDP struct {
 }
 
 // NewUDP -TODO-
-func NewUDP(config UDPConfig) (Relay, error) {
+func NewUDP(config config.UDPConfig) (Relay, error) {
 	u := new(UDP)
 
 	u.name = config.Name

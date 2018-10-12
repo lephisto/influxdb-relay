@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/signal"
 
-	. "github.com/vente-privee/influxdb-relay/config"
+	"github.com/vente-privee/influxdb-relay/config"
 	"github.com/vente-privee/influxdb-relay/relayservice"
 )
 
@@ -26,7 +26,7 @@ var (
 	versionFlag = flag.Bool("version", false, "Print current InfluxDB Relay version")
 )
 
-func runRelay(cfg Config) {
+func runRelay(cfg config.Config) {
 	relay, err := relayservice.New(cfg)
 	if err != nil {
 		log.Fatal(err)
@@ -61,7 +61,7 @@ func main() {
 	}
 
 	// And it has to be loaded in order to continue
-	cfg, err := LoadConfigFile(*configFile)
+	cfg, err := config.LoadConfigFile(*configFile)
 	if err != nil {
 		log.Fatal(err.Error())
 	}

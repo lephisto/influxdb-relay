@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	. "github.com/vente-privee/influxdb-relay/config"
+	"github.com/vente-privee/influxdb-relay/config"
 )
 
 // HTTP is a relay for HTTP influxdb writes
@@ -72,7 +72,7 @@ var (
 // NewHTTP creates a new HTTP relay
 // This relay will most likely be tied to a RelayService
 // and manage a set of HTTPBackends
-func NewHTTP(cfg HTTPConfig, verbose bool) (Relay, error) {
+func NewHTTP(cfg config.HTTPConfig, verbose bool) (Relay, error) {
 	h := new(HTTP)
 
 	h.addr = cfg.Addr
@@ -244,8 +244,8 @@ func (s *simplePoster) getStats() map[string]string {
 	return v
 }
 
-func (b *simplePoster) post(buf []byte, query string, auth string) (*responseData, error) {
-	req, err := http.NewRequest("POST", b.location, bytes.NewReader(buf))
+func (s *simplePoster) post(buf []byte, query string, auth string) (*responseData, error) {
+	req, err := http.NewRequest("POST", s.location, bytes.NewReader(buf))
 	if err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ func (b *simplePoster) post(buf []byte, query string, auth string) (*responseDat
 		req.Header.Set("Authorization", auth)
 	}
 
-	resp, err := b.client.Do(req)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -279,10 +279,10 @@ func (b *simplePoster) post(buf []byte, query string, auth string) (*responseDat
 type httpBackend struct {
 	poster
 	name      string
-	inputType Input
+	inputType config.Input
 }
 
-func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
+func newHTTPBackend(cfg *config.HTTPOutputConfig) (*httpBackend, error) {
 	// Get default name
 	if cfg.Name == "" {
 		cfg.Name = cfg.Location
@@ -326,7 +326,7 @@ func newHTTPBackend(cfg *HTTPOutputConfig) (*httpBackend, error) {
 	}, nil
 }
 
-// ErrBufferFull
+// ErrBufferFull error indicates that retry buffer is full
 var ErrBufferFull = errors.New("retry buffer full")
 
 var bufPool = sync.Pool{New: func() interface{} { return new(bytes.Buffer) }}
