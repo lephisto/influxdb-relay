@@ -236,9 +236,17 @@ func jsonResponse(w http.ResponseWriter, r response) {
 	_, _ = w.Write(data)
 }
 
+type stats interface {
+
+}
+
 type poster interface {
 	post([]byte, string, string, string) (*responseData, error)
-	getStats() map[string]string
+	getStats() stats
+}
+
+type simpleStats struct {
+	location string
 }
 
 type simplePoster struct {
@@ -264,10 +272,8 @@ func newSimplePoster(location string, timeout time.Duration, skipTLSVerification
 	}
 }
 
-func (s *simplePoster) getStats() map[string]string {
-	v := make(map[string]string)
-	v["location"] = s.location
-	return v
+func (s *simplePoster) getStats() stats {
+	return simpleStats{location: s.location}
 }
 
 func (s *simplePoster) post(buf []byte, query string, auth string, endpoint string) (*responseData, error) {

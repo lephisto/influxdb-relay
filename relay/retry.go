@@ -51,12 +51,17 @@ func newRetryBuffer(size, batch int, max time.Duration, p poster) *retryBuffer {
 	return r
 }
 
-func (r *retryBuffer) getStats() map[string]string {
-	stats := make(map[string]string)
-	stats["buffering"] = strconv.FormatInt(int64(r.buffering), 10)
-	for k, v := range r.list.getStats() {
-		stats[k] = v
-	}
+type retryStats struct {
+	buffering int64
+	maxSize   int64
+	size      int64
+}
+
+func (r *retryBuffer) getStats() stats {
+	stats := retryStats{}
+	stats.buffering = int64(r.buffering)
+	stats.maxSize = int64(r.list.maxSize)
+	stats.size = int64(r.list.size)
 	return stats
 }
 
@@ -169,12 +174,6 @@ func newBufferList(maxSize, maxBatch int) *bufferList {
 	}
 }
 
-func (l *bufferList) getStats() map[string]string {
-	stats := make(map[string]string)
-	stats["size"] = strconv.FormatInt(int64(l.size), 10)
-	stats["maxSize"] = strconv.FormatInt(int64(l.maxSize), 10)
-	return stats
-}
 
 // Empty the buffer to drop any buffered query
 // This allows to flush 'impossible' queries which loop infinitely

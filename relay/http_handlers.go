@@ -2,9 +2,7 @@ package relay
 
 import (
 	"bytes"
-	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -13,18 +11,19 @@ import (
 	"github.com/influxdata/influxdb/models"
 )
 
+type status struct {
+	Status  map[string]stats `json:"status"`
+}
+
 func (h *HTTP) handleStatus(w http.ResponseWriter, r *http.Request, _ time.Time) {
 	if r.Method == http.MethodGet || r.Method == http.MethodHead {
-		// old but gold
-		st := make(map[string]map[string]string)
+		st := status{Status: make(map[string]stats)}
 
 		for _, b := range h.backends {
-			st[b.name] = b.poster.getStats()
+			st.Status[b.name] = b.poster.getStats()
 		}
 
-		j, _ := json.Marshal(st)
-
-		jsonResponse(w, response{http.StatusOK, fmt.Sprintf("{\"status\": %s}", string(j))})
+		jsonResponse(w, response{http.StatusOK, st})
 	} else {
 		jsonResponse(w, response{http.StatusMethodNotAllowed, http.StatusText(http.StatusMethodNotAllowed)})
 		return
