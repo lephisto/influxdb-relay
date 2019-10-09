@@ -1,0 +1,29 @@
+version: '3.2'
+
+services:
+  influxdb:
+    image: "influxdb:latest"
+    container_name: "influxdb"
+    environment:
+      - INFLUXDB_BIND_ADDRESS:0.0.0.0:8088
+      - INFLUXDB_HTTP_FLUX_ENABLED=true
+    volumes:
+      - /srv/docker/influxdb/data:/var/lib/influxdb
+    ports:
+      - "8086:8086"
+      - "8088:8088"
+
+  relay:
+    image: "influxdb-relay:latest"
+    container_name: influxdb-relay
+    build:
+      dockerfile: Dockerfile
+      context: .
+    ports:
+      - 9096:9096
+    restart: on-failure:5
+    volumes: 
+      - ~/influxdb-relay.conf:/etc/influxdb-relay/influxdb-relay.conf
+    depends_on:
+      - influxdb
+
